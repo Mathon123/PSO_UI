@@ -1,0 +1,68 @@
+[project]
+name = "pso-ui"
+version = "1.0.0"
+description = "胫神经电刺激数据分析与PSO参数优化工具"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "PSO UI Team"}
+]
+keywords = ["pso", "optimization", "data-analysis", "neural-stimulation", "gui"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+dependencies = [
+    "PyQt6>=6.4.0",
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "pandas>=2.0.0",
+    "openpyxl>=3.1.0",
+    "matplotlib>=3.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-qt>=4.0.0",
+    "pytest-cov>=4.0.0",
+]
+all = [
+    "pso-ui[dev]",
+]
+
+[project.scripts]
+pso-ui = "main:main"
+
+[project.urls]
+Homepage = "https://github.com/your-repo/pso-ui"
+Documentation = "https://github.com/your-repo/pso-ui#readme"
+Repository = "https://github.com/your-repo/pso-ui"
+Issues = "https://github.com/your-repo/pso-ui/issues"
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["modules*", "ui*", "utils*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"

@@ -1,0 +1,23 @@
+# PSO_UI 开发依赖
+# =================
+# 安装命令: pip install -r requirements-dev.txt
+
+# 核心测试框架
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-timeout>=2.2.0
+pytest-xdist>=3.5.0
+
+# PyQt6测试支持（可选，用于UI测试）
+pytest-qt>=4.2.0
+
+# 代码质量检查
+flake8>=6.1.0
+black>=23.0.0
+mypy>=1.7.0
+
+# 测试覆盖率报告生成
+coverage>=7.3.0
+
+# 快速测试运行（用于CI）
+pytest-fast-runner>=1.0.0
