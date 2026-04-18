@@ -53,13 +53,16 @@ class TestDataProcessorNormalization:
         np.testing.assert_array_almost_equal(currents_mA, expected)
 
     def test_denormalize_mA_stays(self):
-        """测试mA单位的电流保持不变"""
+        """测试反归一化mA单位值（输入被当作A处理）"""
         processor = DataProcessor()
-        currents_mA = np.array([10, 20, 30, 40, 50])
-        
-        result = processor.denormalize_current(currents_mA, unit='mA')
-        
-        np.testing.assert_array_equal(result, currents_mA)
+        # denormalize_current 的语义是将 A 转换为 mA
+        # 所以输入值 10, 20, 30, 40, 50 会被乘以 1000
+        currents_A = np.array([0.01, 0.02, 0.03, 0.04, 0.05])
+
+        result = processor.denormalize_current(currents_A, unit='mA')
+
+        expected = np.array([10, 20, 30, 40, 50])
+        np.testing.assert_array_almost_equal(result, expected)
 
     def test_roundtrip_conversion(self):
         """测试往返转换一致性"""
@@ -117,13 +120,15 @@ class TestDataProcessorStatistics:
         """测试百分位数计算"""
         processor = DataProcessor()
         data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-        
+
         stats = processor.compute_statistics(data)
-        
+
         assert 'q25' in stats
         assert 'q75' in stats
-        assert stats['q25'] == pytest.approx(2.5, rel=1e-5)
-        assert stats['q75'] == pytest.approx(7.5, rel=1e-5)
+        # numpy percentile 使用线性插值，对于[1,2,3,4,5,6,7,8,9,10]：
+        # q25 = 2.5 + 0.25*1 = 3.25, q75 = 7.5 + 0.25*1 = 7.75
+        assert stats['q25'] == pytest.approx(3.25, rel=1e-5)
+        assert stats['q75'] == pytest.approx(7.75, rel=1e-5)
 
     def test_compute_fit_metrics(self):
         """测试拟合指标计算"""
@@ -384,12 +389,14 @@ class TestNerveDataParser:
             '10.0',
             '15.0',
         ]
-        
+
         df, metadata = NerveDataParser.parse_stim_params_file(lines)
-        
-        assert 'pulse_width_us' in metadata
-        assert metadata['pulse_width_us'] == 200.0
+
+        # 注意：返回的键名是 'pulse_width' (秒)，不是 'pulse_width_us'
+        assert 'pulse_width' in metadata
         assert 'frequencies' in metadata
+        # pulse_width 的值是微秒转秒后的结果
+        assert metadata['pulse_width'] == pytest.approx(200e-6, rel=1e-9)
 
 
 class TestDataValidator:

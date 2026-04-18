@@ -1,52 +1,35 @@
 @echo off
-chcp 65001 >nul
-echo ============================================
-echo   PSO数据分析工具 - 安装脚本
-echo ============================================
+chcp 65001 > nul
+echo ========================================
+echo PSO_UI 依赖安装脚本
+echo ========================================
 echo.
 
-:: 检查Python版本
-python --version >nul 2>&1
-if errorlevel 1 (
-    echo [错误] 未检测到Python，请先安装Python 3.8或更高版本
-    echo 下载地址: https://www.python.org/downloads/
-    pause
-    exit /b 1
-)
-
-echo [1/4] 检查Python版本...
+echo [1/3] 检查Python版本...
 python --version
-echo.
+if errorlevel 1 (
+    echo 错误: 未找到Python，请先安装Python 3.8+
+    pause
+    exit /b 1
+)
 
-echo [2/4] 升级pip...
+echo.
+echo [2/3] 升级pip...
 python -m pip install --upgrade pip
-if errorlevel 1 (
-    echo [警告] pip升级失败，继续安装...
-)
-echo.
 
-echo [3/4] 安装依赖包...
-python -m pip install -r requirements.txt
-if errorlevel 1 (
-    echo [错误] 依赖安装失败
-    pause
-    exit /b 1
-)
 echo.
+echo [3/3] 安装项目依赖...
+pip install -r requirements.txt
 
-echo [4/4] 验证安装...
-python -c "import PyQt6; import numpy; import scipy; import pandas; import matplotlib; print('所有依赖包安装成功!')"
-if errorlevel 1 (
-    echo [错误] 依赖验证失败
-    pause
-    exit /b 1
-)
 echo.
-
-echo ============================================
-echo   安装完成!
-echo ============================================
+echo ========================================
+echo 安装完成！
+echo ========================================
 echo.
-echo 运行程序: run.bat
+echo 可选：安装开发依赖（测试、文档工具）
+echo   pip install -r requirements-dev.txt
+echo.
+echo 可选：安装全部依赖（包括开发依赖）
+echo   pip install pso-ui[all]
 echo.
 pause

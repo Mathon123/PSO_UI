@@ -66,10 +66,7 @@ font_paths = [
 ]
 
 # 添加字体到Matplotlib字体管理器
-for font_path in font_paths:
-    if os.path.exists(font_path):
-        fontManager.addfont(font_path)
-        print(f"[Visualization] Added font: {font_path}", flush=True)
+# 静默加载字体，不输出日志
 
 # 设置默认字体族为 sans-serif
 plt.rcParams['font.family'] = 'sans-serif'

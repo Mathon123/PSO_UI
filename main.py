@@ -142,30 +142,28 @@ class OptimizationThread(QThread):
     def run(self):
         """
         线程主函数
-        
+
         【执行流程】
         1. 检查数据是否有效
         2. 创建优化器并设置数据
         3. 执行优化（带进度回调）
         4. 发射完成/错误信号
-        
+
         【注意】
         - 这是在线程中执行的函数
         - 不要在这里直接操作UI组件
         - 使用信号槽与主线程通信
         """
         try:
-            print(f"[PSO Thread] 开始优化: particles={self.n_particles}, iterations={self.n_iterations}, target_rmse={self.target_rmse}", flush=True)
-            
             # 记录开始时间
             start_time = time_module.time()
-            
+
             # 直接从 workflow 获取数据（data已在主线程中设置好）
             data = self.workflow.data
-            
+
             if data is None:
                 raise ValueError("workflow.data 为 None，请先导入数据")
-            
+
             # 获取频率对应的响应数据
             freq_key = f'Freq_{int(self.frequency)}Hz'
             responses = data.responses.get(freq_key)
@@ -174,26 +172,20 @@ class OptimizationThread(QThread):
                 available_freqs = list(data.responses.keys())
                 raise ValueError(f"频率 {self.frequency}Hz 不存在，可用频率: {available_freqs}")
 
-            print(f"[PSO Thread] 频率={freq_key}, 数据点数={len(responses)}", flush=True)
-
             # 创建优化器并设置数据
             from modules.pso_optimizer import NerveParameterOptimizer
             optimizer = NerveParameterOptimizer()
             optimizer.set_data(
-                currents=data.currents_A,  # 电流数组 (A)
-                responses=responses,  # 响应概率数组
-                pulse_width=data.pulse_width_s  # 脉宽 (s)
+                currents=data.currents_A,
+                responses=responses,
+                pulse_width=data.pulse_width_s
             )
-            print(f"[PSO Thread] 优化器创建完成", flush=True)
 
             # 创建回调函数，直接发射进度信号
-            # 进度回调在优化过程中被PSO算法调用
             def progress_callback(it, rmse):
-                # self.progress.emit: 发射信号到主线程
                 self.progress.emit(it, rmse)
 
             # 执行优化
-            print(f"[PSO Thread] 开始执行优化...", flush=True)
             result = optimizer.optimize(
                 n_particles=self.n_particles,
                 n_iterations=self.n_iterations,
@@ -201,31 +193,23 @@ class OptimizationThread(QThread):
                 verbose=False,
                 progress_callback=progress_callback
             )
-            
+
             # 计算耗时
             elapsed = time_module.time() - start_time
-            print(f"[PSO Thread] 优化完成! RMSE={result.best_rmse:.6f}, 迭代={len(result.history.gbest_fitness_history)}, 耗时={elapsed:.2f}s", flush=True)
 
             # 更新 workflow 的优化器引用
             self.workflow.optimizer = optimizer
             self.workflow.optimization_result = result
-            print(f"[PSO Thread] 结果已保存到 workflow", flush=True)
 
             # 发射完成信号，携带结果
-            # self.finished.emit: 触发finished信号
-            # 字典包含: result(优化结果), params(辨识的参数)
             self.finished.emit({
                 'result': result,
                 'params': optimizer.get_identified_params()
             })
-            print(f"[PSO Thread] finished 信号已发射", flush=True)
 
         except Exception as e:
-            # 捕获所有异常，发射错误信号
             import traceback
-            print(f"[PSO Thread] 异常: {type(e).__name__}: {str(e)}", flush=True)
-            print(f"[PSO Thread] 异常详情:\n{traceback.format_exc()}", flush=True)
-            error_detail = f"{type(e).__name__}: {str(e)}\n\n{traceback.format_exc()}"
+            error_detail = f"{type(e).__name__}: {str(e)}"
             self.error.emit(error_detail)
 
 
@@ -304,7 +288,6 @@ class PSODataAnalysisApp(MainWindow):
 
         # 保存"优化结果"Tab的引用
         self.result_tab = self.main_tabs.widget(1) if hasattr(self, 'main_tabs') else None
-        print(f"[UI] 获取 result_tab: {self.result_tab is not None}", flush=True)
 
         self.chart_tabs.clear()
 
@@ -396,18 +379,7 @@ class PSODataAnalysisApp(MainWindow):
 
     def _update_data_ui(self):
         """更新数据UI"""
-        print(f"[UI] _update_data_ui 被调用", flush=True)
-
-        # 记录导入前尺寸
-        if hasattr(self, 'central_splitter'):
-            sizes_before = self.central_splitter.sizes()
-            print(f"[SIZE-DEBUG] _update_data_ui 开始前 splitter 尺寸: {sizes_before}", flush=True)
-        print(f"[UI] experiment_data = {self.experiment_data}", flush=True)
-
         if self.experiment_data:
-            print(f"[UI] 数据点数: {self.experiment_data.n_points}", flush=True)
-            print(f"[UI] 频率列表: {self.experiment_data.frequencies}", flush=True)
-
             # 加载到表格
             df = pd.DataFrame({
                 '电流_mA': self.experiment_data.currents_mA
@@ -416,7 +388,6 @@ class PSODataAnalysisApp(MainWindow):
                 df[f'Freq_{int(freq)}Hz'] = self.experiment_data.responses.get(
                     f'Freq_{int(freq)}Hz', []
                 )
-            print(f"[UI] 表格DataFrame:\n{df}", flush=True)
             self.load_data_to_table(df)
 
             # 更新侧边栏
@@ -427,13 +398,6 @@ class PSODataAnalysisApp(MainWindow):
                 'cols': len(self.experiment_data.frequencies) + 1,
                 'type': f'胫神经数据 (脉宽{self.experiment_data.pulse_width_us:.0f}us, {freq_str})'
             })
-
-            # 检查尺寸变化
-            if hasattr(self, 'central_splitter'):
-                sizes_after = self.central_splitter.sizes()
-                print(f"[SIZE-DEBUG] _update_data_ui 完成后 splitter 尺寸: {sizes_after}", flush=True)
-        else:
-            print("[UI] experiment_data 为 None，跳过UI更新", flush=True)
 
     def _plot_response_curve(self):
         """绘制响应曲线"""
@@ -692,6 +656,25 @@ class PSODataAnalysisApp(MainWindow):
         if self.optimization_result:
             self._refresh_current_chart()
 
+    def _refresh_current_chart(self):
+        """刷新当前图表（用于Tab切换或手动刷新）"""
+        if not self.experiment_data:
+            return
+
+        current_widget = self.chart_tabs.currentWidget()
+
+        # 根据当前Tab名称刷新对应图表
+        current_tab_name = self.chart_tabs.tabText(self.chart_tabs.currentIndex())
+
+        if '响应曲线' in current_tab_name:
+            self._plot_response_curve()
+        elif '对比' in current_tab_name:
+            self._plot_comparison_curve()
+        elif '残差' in current_tab_name:
+            self._plot_residual_analysis()
+        elif '综合' in current_tab_name:
+            self._plot_comprehensive()
+
     def _plot_comparison_curve(self):
         """绘制实验vs仿真对比曲线"""
         if not self.experiment_data or not self.optimizer:
@@ -724,9 +707,6 @@ class PSODataAnalysisApp(MainWindow):
                 freq_key
             )
         except Exception as e:
-            import traceback
-            print(f"[UI] [_plot_comparison_curve] 绘制失败: {e}", flush=True)
-            print(f"[UI] 异常详情:\n{traceback.format_exc()}", flush=True)
             self.update_status(f"绘制失败: {str(e)}")
 
     @pyqtSlot()
@@ -765,9 +745,8 @@ class PSODataAnalysisApp(MainWindow):
                     responses_sim[:len(responses_exp)],
                     title=f"残差分析 - {freq_key}"
                 )
-        except Exception as e:
-            print(f"[UI] [_plot_residual_analysis] 绘制异常: {e}", flush=True)
-            self.update_status(f"残差分析绘制失败: {str(e)}")
+        except Exception:
+            self.update_status("残差分析绘制失败")
 
     def _plot_comprehensive(self):
         """绘制综合分析图"""
@@ -805,30 +784,23 @@ class PSODataAnalysisApp(MainWindow):
     @pyqtSlot()
     def run_pso_optimization(self):
         """运行PSO优化"""
-        print(f"[DEBUG] run_pso_optimization 被调用", flush=True)
-        print(f"[DEBUG] experiment_data = {self.experiment_data}", flush=True)
-        
         if not self.experiment_data:
-            print(f"[DEBUG] 没有数据，显示警告", flush=True)
             self.show_warning("优化失败", "请先导入EMG数据")
             return
 
         # 检查是否已有线程在运行
         if self.optimization_thread is not None and self.optimization_thread.isRunning():
-            print(f"[DEBUG] 线程正在运行，显示警告", flush=True)
             self.show_warning("优化失败", "优化任务正在进行中，请等待完成")
             return
 
         # 保存 splitter 尺寸，防止布局变化
         if hasattr(self, 'central_splitter'):
-            sizes = self.central_splitter.sizes()
-            self._saved_splitter_sizes = sizes
-            print(f"[DEBUG-SIZE] 运行优化前保存尺寸: {sizes}", flush=True)
+            self._saved_splitter_sizes = self.central_splitter.sizes()
 
         # 获取参数
-        n_particles = self.spin_particles.value()
-        n_iterations = self.spin_iterations.value()
-        target_rmse = self.spin_target_rmse.value()
+        n_particles = self.get_particles_value()
+        n_iterations = self.get_iterations_value()
+        target_rmse = self.get_target_rmse_value()
 
         # 选择频率
         freq = self.experiment_data.frequencies[0] if self.experiment_data.frequencies else 10
@@ -860,145 +832,99 @@ class PSODataAnalysisApp(MainWindow):
 
     def _on_optimization_finished(self, result):
         """优化完成"""
-        import traceback
         from PyQt6.QtWidgets import QApplication
-        
-        print(f"[UI] 收到优化完成信号", flush=True)
-        
+
         # 保存结果数据
         self.optimization_result = result['result']
         self.identified_params = result['params']
 
-        print(f"[UI] RMSE={self.optimization_result.best_rmse:.6f}", flush=True)
-        print(f"[UI] 参数数量: {len(self.identified_params) if self.identified_params else 0}", flush=True)
-
         # 获取优化器
         self.optimizer = self.workflow.optimizer
-        print(f"[UI] 获取优化器成功: {self.optimizer is not None}", flush=True)
 
         # 恢复 splitter 尺寸
         if hasattr(self, 'central_splitter') and hasattr(self, '_saved_splitter_sizes'):
             self.central_splitter.setSizes(self._saved_splitter_sizes)
-            print(f"[DEBUG-SIZE] splitter尺寸已恢复", flush=True)
 
         self.progress_bar.setVisible(False)
         self.btn_run_pso.setEnabled(True)
 
         self.update_status(f"优化完成: {self.optimization_result.message}")
-        print(f"[UI] UI状态已更新", flush=True)
 
         # 获取收敛历史
         history = self.workflow.get_convergence_history()
-        print(f"[UI] 收敛历史长度: {len(history)}", flush=True)
-        
-        if len(history) == 0:
-            print("[UI] 警告: 收敛历史为空!", flush=True)
 
-        # 【修复1】首先显示优化结果（优先于图表更新）
-        print("[UI] [Step 1] 开始显示优化结果...", flush=True)
-        
-        # 调试信息
-        print(f"[UI] [Step 1] result_tab = {self.result_tab is not None}", flush=True)
-        print(f"[UI] [Step 1] main_tabs = {hasattr(self, 'main_tabs') and self.main_tabs is not None}", flush=True)
-        
+        # 首先显示优化结果（优先于图表更新）
         # 检查 result_tab 是否有效
         if self.result_tab is None:
-            print("[UI] [Step 1] 警告: result_tab 为 None，尝试重新获取", flush=True)
             if hasattr(self, 'main_tabs') and self.main_tabs is not None:
                 self.result_tab = self.main_tabs.widget(1)
-                print(f"[UI] [Step 1] 重新获取 result_tab: {self.result_tab is not None}", flush=True)
-        
+
         try:
             # 切换到"优化结果"Tab
             if self.result_tab:
                 self.main_tabs.setCurrentWidget(self.result_tab)
-                print("[UI] [Step 1] 已切换到优化结果 Tab", flush=True)
                 QApplication.processEvents()
-            else:
-                print("[UI] [Step 1] 错误: result_tab 仍然为 None，无法切换 Tab", flush=True)
-            
-            # 显示结果
-            print("[UI] [Step 1] 调用 _show_optimization_result()...", flush=True)
-            self._show_optimization_result()
-            print("[UI] [Step 1] 优化结果显示完成", flush=True)
-        except Exception as e:
-            print(f"[UI] [Step 1] 显示结果异常: {type(e).__name__}: {str(e)}", flush=True)
-            print(f"[UI] 异常详情:\n{traceback.format_exc()}", flush=True)
 
-        # 【修复2】然后延迟更新图表（分离关注点）
+            # 显示结果
+            self._show_optimization_result()
+        except Exception:
+            pass  # 静默处理显示异常，避免干扰用户
+
+        # 然后延迟更新图表（分离关注点）
         QTimer.singleShot(200, lambda: self._update_charts_after_optimization(history))
 
     def _update_charts_after_optimization(self, history: list):
         """延迟更新图表（在结果Tab显示后执行）"""
-        import traceback
         from PyQt6.QtWidgets import QApplication
-        
-        print("[UI] [Step 2] 开始更新图表...", flush=True)
-        
+
         try:
             # 处理事件确保 Tab 切换完成
             QApplication.processEvents()
-            
+
             # 绘制收敛曲线
-            print("[UI] [Step 2] 绘制收敛曲线...", flush=True)
             convergence_widget = self.chart_widgets['convergence']
             self.chart_tabs.setCurrentWidget(convergence_widget)
             convergence_widget.plot(
                 history,
-                self.spin_target_rmse.value(),
+                self.get_target_rmse_value(),
                 "PSO优化收敛曲线"
             )
-            print("[UI] [Step 2] 收敛曲线绘制完成", flush=True)
             QApplication.processEvents()
-            
+
             # 绘制参数柱状图
-            print("[UI] [Step 2] 绘制参数柱状图...", flush=True)
             param_widget = self.chart_widgets['parameter']
             param_widget.plot(
                 self.identified_params,
                 NerveParameterOptimizer.PARAM_DISPLAY_NAMES,
                 "辨识的参数分布"
             )
-            print("[UI] [Step 2] 参数柱状图绘制完成", flush=True)
             QApplication.processEvents()
-            
+
             # 绘制对比曲线
-            print("[UI] [Step 2] 绘制对比曲线...", flush=True)
             self._plot_comparison_curve()
-            print("[UI] [Step 2] 对比曲线绘制完成", flush=True)
             QApplication.processEvents()
-            
+
             # 绘制SD曲线
             try:
                 pw_us, curr_mA = self.optimizer.compute_sd_curve(target_p=0.8)
                 self.chart_widgets['sd_curve'].plot(pw_us, curr_mA, target_p=0.8)
-                print("[UI] [Step 2] SD曲线绘制完成", flush=True)
-            except Exception as e:
-                print(f"[UI] [Step 2] SD曲线绘制异常: {e}", flush=True)
-            
+            except Exception:
+                pass
+
             # 绘制残差分析图
-            print("[UI] [Step 2] 绘制残差分析...", flush=True)
             self._plot_residual_analysis()
-            print("[UI] [Step 2] 残差分析绘制完成", flush=True)
             QApplication.processEvents()
-            
+
             # 绘制综合分析图
-            print("[UI] [Step 2] 绘制综合分析...", flush=True)
             self._plot_comprehensive()
-            print("[UI] [Step 2] 综合分析绘制完成", flush=True)
             QApplication.processEvents()
-            
-            print("[UI] [Step 2] 所有图表更新完成", flush=True)
-            
-        except Exception as e:
-            print(f"[UI] [Step 2] 图表更新异常: {type(e).__name__}: {str(e)}", flush=True)
-            print(f"[UI] 异常详情:\n{traceback.format_exc()}", flush=True)
+
+        except Exception:
             self.update_status("图表更新时出错")
             # 不显示错误弹窗，因为结果已正常显示
 
     def _on_optimization_error(self, error_msg: str):
         """优化错误"""
-        print(f"[UI] 收到优化错误信号: {error_msg[:200]}...", flush=True)
         self.progress_bar.setVisible(False)
         self.btn_run_pso.setEnabled(True)
         self.update_status("优化失败")
@@ -1006,33 +932,14 @@ class PSODataAnalysisApp(MainWindow):
 
     def _show_optimization_result(self):
         """显示优化结果"""
-        print(f"[UI] [_show_optimization_result] 方法开始执行", flush=True)
-        
-        # 数据验证
         if not self.optimization_result:
-            print("[UI] [_show_optimization_result] 错误: optimization_result 为 None", flush=True)
             return
-        
-        if self.optimization_result is None:
-            print("[UI] [_show_optimization_result] 错误: optimization_result 为 None", flush=True)
-            return
-            
-        print(f"[UI] [_show_optimization_result] optimizer: {self.optimizer is not None}", flush=True)
-        print(f"[UI] [_show_optimization_result] experiment_data: {self.experiment_data is not None}", flush=True)
-        
-        # 打印当前标签状态
-        print(f"[UI] [_show_optimization_result] 检查标签存在:", flush=True)
-        print(f"  - self.rmse_value: {hasattr(self, 'rmse_value')}", flush=True)
-        print(f"  - self.r2_value: {hasattr(self, 'r2_value')}", flush=True)
-        print(f"  - self.iter_value: {hasattr(self, 'iter_value')}", flush=True)
-        print(f"  - self.time_value: {hasattr(self, 'time_value')}", flush=True)
-        
+
         # 计算基础指标
         n_iterations = len(self.optimization_result.history.gbest_fitness_history)
         elapsed = self.optimization_result.history.optimization_time
-        print(f"[UI] [_show_optimization_result] 迭代次数={n_iterations}, 耗时={elapsed:.2f}s", flush=True)
 
-        # 计算R²（带详细异常处理）
+        # 计算R²
         r2_value = 0.0
         try:
             if self.experiment_data and self.optimizer:
@@ -1045,37 +952,23 @@ class PSODataAnalysisApp(MainWindow):
                     ss_res = sum((a - b) ** 2 for a, b in zip(responses_exp, responses_sim[:len(responses_exp)]))
                     ss_tot = sum((a - sum(responses_exp) / len(responses_exp)) ** 2 for a in responses_exp)
                     r2_value = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
-        except Exception as e:
-            print(f"[UI] R²计算异常: {e}", flush=True)
+        except Exception:
+            pass
 
-        # 计算阈值电流（每个单独处理，确保部分成功也能显示）
+        # 计算阈值电流
         threshold_data = {}
-        try:
-            threshold_50 = self.optimizer.compute_threshold_current(0.5)
-            if threshold_50:
-                threshold_data['P=50%'] = f"{threshold_50*1000:.2f} mA"
-        except Exception as e:
-            print(f"[UI] 阈值P=50%计算异常: {e}", flush=True)
-
-        try:
-            threshold_80 = self.optimizer.compute_threshold_current(0.8)
-            if threshold_80:
-                threshold_data['P=80%'] = f"{threshold_80*1000:.2f} mA"
-        except Exception as e:
-            print(f"[UI] 阈值P=80%计算异常: {e}", flush=True)
-
-        try:
-            threshold_90 = self.optimizer.compute_threshold_current(0.9)
-            if threshold_90:
-                threshold_data['P=90%'] = f"{threshold_90*1000:.2f} mA"
-        except Exception as e:
-            print(f"[UI] 阈值P=90%计算异常: {e}", flush=True)
+        for target_p, label in [(0.5, 'P=50%'), (0.8, 'P=80%'), (0.9, 'P=90%')]:
+            try:
+                threshold = self.optimizer.compute_threshold_current(target_p)
+                if threshold:
+                    threshold_data[label] = f"{threshold*1000:.2f} mA"
+            except Exception:
+                pass
 
         # 确保params不为空
         params = self.identified_params if self.identified_params else {}
-        print(f"[UI] 显示数据: params={len(params)}, threshold={len(threshold_data)}", flush=True)
 
-        # 总是调用更新（即使数据部分为空）
+        # 更新显示
         self.update_optimization_result_display({
             'rmse': self.optimization_result.best_rmse,
             'iterations': n_iterations,
@@ -1085,8 +978,6 @@ class PSODataAnalysisApp(MainWindow):
             'params': params,
             'threshold': threshold_data
         })
-
-        print(f"[UI] [_show_optimization_result] 调用 update_optimization_result_display 完成", flush=True)
 
     @pyqtSlot()
     def show_about(self):

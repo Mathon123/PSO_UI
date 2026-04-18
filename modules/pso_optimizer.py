@@ -129,14 +129,16 @@ class AdaptivePSO:
         """更新粒子位置"""
         self.X = self.X + self.V
 
+        # 边界反弹处理 - 使用反射策略
+        # 注意: 此实现可能导致边界附近震荡，后续可优化为clamp方式
         for j in range(self.n_particles):
             for d in range(self.dim):
                 if self.X[j, d] < 0:
                     self.X[j, d] = -self.X[j, d]
-                    self.V[j, d] *= -0.5
+                    self.V[j, d] *= -0.5  # 速度反向并衰减
                 elif self.X[j, d] > 1:
                     self.X[j, d] = 2 - self.X[j, d]
-                    self.V[j, d] *= -0.5
+                    self.V[j, d] *= -0.5  # 速度反向并衰减
 
     def _apply_mutation(self):
         """柯西变异 - 跳出局部最优"""
@@ -337,6 +339,8 @@ class NerveParameterOptimizer:
         )
 
         # 构建适应度函数
+        # 注意: 每次迭代都创建新的模型实例，效率较低但代码简洁
+        # 优化方向: 可考虑复用模型实例或使用缓存
         def fitness_func(norm_params):
             phys_params = self.pso._to_physical(norm_params)
 

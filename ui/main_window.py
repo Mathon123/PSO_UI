@@ -41,7 +41,7 @@ from PyQt6.QtWidgets import (
     QApplication
 )
 from PyQt6.QtCore import Qt, QSize, pyqtSlot, QTimer, QSettings
-from PyQt6.QtGui import QAction, QFont, QIcon, QKeyEvent
+from PyQt6.QtGui import QAction, QFont, QIcon, QKeyEvent, QIntValidator, QDoubleValidator
 
 from modules.config import (
     COLORS, FONTS, SPACING, BORDER_RADIUS,
@@ -227,9 +227,9 @@ class StyleSheet:
             background-color: {COLORS['bg_card']};
             border: 1px solid {COLORS['border']};
             border-radius: {BORDER_RADIUS['sm']}px;
-            padding: 8px 32px 8px 12px;
+            padding: 4px 32px 4px 12px;         
             font-size: {FONTS['size_md']}px;
-            min-height: 32px;
+            min-height: 25px;    
         }}
 
         QSpinBox:focus, QDoubleSpinBox:focus,
@@ -591,6 +591,115 @@ class MainWindow(QMainWindow):
         settings.setValue("h_splitter_sizes", self.h_splitter.sizes())
         super().closeEvent(event)
 
+    def _on_particles_inc(self):
+        """粒子数增加"""
+        if self._particles_value < self._particles_max:
+            self._particles_value += 10
+            self.label_particles_value.setText(str(self._particles_value))
+
+    def _on_particles_dec(self):
+        """粒子数减少"""
+        if self._particles_value > self._particles_min:
+            self._particles_value -= 10
+            self.label_particles_value.setText(str(self._particles_value))
+
+    def _on_particles_edit_finished(self):
+        """粒子数输入完成"""
+        try:
+            value = int(self.edit_particles.text())
+            if self._particles_min <= value <= self._particles_max:
+                self._particles_value = value
+                self.label_particles_value.setText(str(self._particles_value))
+            else:
+                self.edit_particles.setText(str(self._particles_value))
+        except ValueError:
+            self.edit_particles.setText(str(self._particles_value))
+
+    def get_particles_value(self) -> int:
+        """获取当前粒子数值"""
+        return self._particles_value
+
+    def set_particles_value(self, value: int):
+        """设置粒子数值"""
+        if self._particles_min <= value <= self._particles_max:
+            self._particles_value = value
+            self.label_particles_value.setText(str(self._particles_value))
+
+    def _on_iterations_inc(self):
+        """迭代次数增加"""
+        if self._iterations_value < self._iterations_max:
+            self._iterations_value += self._iterations_step
+            if self._iterations_value > self._iterations_max:
+                self._iterations_value = self._iterations_max
+            self.edit_iterations.setText(str(self._iterations_value))
+
+    def _on_iterations_dec(self):
+        """迭代次数减少"""
+        if self._iterations_value > self._iterations_min:
+            self._iterations_value -= self._iterations_step
+            if self._iterations_value < self._iterations_min:
+                self._iterations_value = self._iterations_min
+            self.edit_iterations.setText(str(self._iterations_value))
+
+    def _on_iterations_edit_finished(self):
+        """迭代次数输入完成"""
+        try:
+            value = int(self.edit_iterations.text())
+            if self._iterations_min <= value <= self._iterations_max:
+                self._iterations_value = value
+            else:
+                self.edit_iterations.setText(str(self._iterations_value))
+        except ValueError:
+            self.edit_iterations.setText(str(self._iterations_value))
+
+    def get_iterations_value(self) -> int:
+        """获取当前迭代次数值"""
+        return self._iterations_value
+
+    def set_iterations_value(self, value: int):
+        """设置迭代次数值"""
+        if self._iterations_min <= value <= self._iterations_max:
+            self._iterations_value = value
+            self.edit_iterations.setText(str(self._iterations_value))
+
+    def _on_rmse_inc(self):
+        """目标RMSE增加"""
+        if self._target_rmse_value < self._target_rmse_max:
+            self._target_rmse_value += self._target_rmse_step
+            if self._target_rmse_value > self._target_rmse_max:
+                self._target_rmse_value = self._target_rmse_max
+            self.edit_target_rmse.setText(f"{self._target_rmse_value:.3f}")
+
+    def _on_rmse_dec(self):
+        """目标RMSE减少"""
+        if self._target_rmse_value > self._target_rmse_min:
+            self._target_rmse_value -= self._target_rmse_step
+            if self._target_rmse_value < self._target_rmse_min:
+                self._target_rmse_value = self._target_rmse_min
+            self.edit_target_rmse.setText(f"{self._target_rmse_value:.3f}")
+
+    def _on_rmse_edit_finished(self):
+        """目标RMSE输入完成"""
+        try:
+            value = float(self.edit_target_rmse.text())
+            if self._target_rmse_min <= value <= self._target_rmse_max:
+                self._target_rmse_value = value
+                self.edit_target_rmse.setText(f"{self._target_rmse_value:.3f}")
+            else:
+                self.edit_target_rmse.setText(f"{self._target_rmse_value:.3f}")
+        except ValueError:
+            self.edit_target_rmse.setText(f"{self._target_rmse_value:.3f}")
+
+    def get_target_rmse_value(self) -> float:
+        """获取当前目标RMSE值"""
+        return self._target_rmse_value
+
+    def set_target_rmse_value(self, value: float):
+        """设置目标RMSE值"""
+        if self._target_rmse_min <= value <= self._target_rmse_max:
+            self._target_rmse_value = value
+            self.edit_target_rmse.setText(f"{self._target_rmse_value:.3f}")
+
     def _create_menu_bar(self):
         """创建菜单栏"""
         menubar = self.menuBar()
@@ -731,38 +840,288 @@ class MainWindow(QMainWindow):
         pso_layout = QGridLayout(pso_group)
         pso_layout.setSpacing(8)  # 网格元素间距
 
-        # 粒子数
+        # 粒子数 - 使用自定义 +/- 按钮布局，支持直接输入
         pso_layout.addWidget(QLabel("粒子数:"), 0, 0)
-        self.spin_particles = QSpinBox()
-        self.spin_particles.setObjectName("paramSpinBox")
-        self.spin_particles.setRange(10, 500)
-        self.spin_particles.setValue(100)
-        self.spin_particles.setToolTip("PSO粒子群中的粒子数量")
-        pso_layout.addWidget(self.spin_particles, 0, 1)
 
-        # 迭代次数
+        # 数值显示和按钮容器
+        particles_widget = QWidget()
+        particles_layout = QHBoxLayout(particles_widget)
+        particles_layout.setContentsMargins(0, 0, 0, 0)
+        particles_layout.setSpacing(4)
+
+        # 数值输入框（可编辑）
+        self.edit_particles = QLineEdit("100")
+        self.edit_particles.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.edit_particles.setFixedSize(80, 35)
+        self.edit_particles.setMaxLength(3)
+        self.edit_particles.setValidator(QIntValidator(10, 500, self))
+        self.edit_particles.setToolTip("PSO粒子群中的粒子数量 (10-500)")
+        self.edit_particles.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {COLORS['bg_card']};
+                border: 1px solid {COLORS['border']};
+                border-radius: {BORDER_RADIUS['sm']}px;
+                padding: 0px 4px;
+                font-size: {FONTS['size_md']}px;
+                color: {COLORS['text_primary']};
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {COLORS['primary']};
+            }}
+        """)
+
+        # + 按钮
+        self.btn_particles_inc = QPushButton("+")
+        self.btn_particles_inc.setFixedWidth(28)
+        self.btn_particles_inc.setToolTip("增加粒子数")
+        self.btn_particles_inc.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLORS['bg_card']};
+                border: 1px solid {COLORS['border']};
+                border-radius: {BORDER_RADIUS['sm']}px;
+                padding: 4px 8px;
+                color: {COLORS['text_primary']};
+                font-size: {FONTS['size_md']}px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['border_light']};
+                border-color: {COLORS['primary']};
+            }}
+            QPushButton:pressed {{
+                background-color: {COLORS['border']};
+            }}
+        """)
+
+        # - 按钮
+        self.btn_particles_dec = QPushButton("-")
+        self.btn_particles_dec.setFixedWidth(28)
+        self.btn_particles_dec.setToolTip("减少粒子数")
+        self.btn_particles_dec.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLORS['bg_card']};
+                border: 1px solid {COLORS['border']};
+                border-radius: {BORDER_RADIUS['sm']}px;
+                padding: 4px 8px;
+                color: {COLORS['text_primary']};
+                font-size: {FONTS['size_md']}px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['border_light']};
+                border-color: {COLORS['primary']};
+            }}
+            QPushButton:pressed {{
+                background-color: {COLORS['border']};
+            }}
+        """)
+
+        particles_layout.addWidget(self.edit_particles)
+        particles_layout.addWidget(self.btn_particles_inc)
+        particles_layout.addWidget(self.btn_particles_dec)
+
+        # 粒子数参数存储
+        self._particles_value = 100
+        self._particles_min = 10
+        self._particles_max = 500
+
+        # 连接信号
+        self.btn_particles_inc.clicked.connect(self._on_particles_inc)
+        self.btn_particles_dec.clicked.connect(self._on_particles_dec)
+        self.edit_particles.editingFinished.connect(self._on_particles_edit_finished)
+
+        pso_layout.addWidget(particles_widget, 0, 1)
+
+        # 迭代次数 - 使用自定义 +/- 按钮布局，支持直接输入
         pso_layout.addWidget(QLabel("迭代次数:"), 1, 0)
-        self.spin_iterations = QSpinBox()
-        self.spin_iterations.setObjectName("paramSpinBox")
-        self.spin_iterations.setRange(10, 500)
-        self.spin_iterations.setValue(50)
-        self.spin_iterations.setToolTip("最大迭代次数")
-        pso_layout.addWidget(self.spin_iterations, 1, 1)
 
-        # 目标RMSE
+        # 数值显示和按钮容器
+        iterations_widget = QWidget()
+        iterations_layout = QHBoxLayout(iterations_widget)
+        iterations_layout.setContentsMargins(0, 0, 0, 0)
+        iterations_layout.setSpacing(4)
+
+        # 数值输入框（可编辑）
+        self.edit_iterations = QLineEdit("50")
+        self.edit_iterations.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.edit_iterations.setFixedSize(80, 35)
+        self.edit_iterations.setMaxLength(3)
+        self.edit_iterations.setValidator(QIntValidator(10, 500, self))
+        self.edit_iterations.setToolTip("PSO最大迭代次数 (10-500)")
+        self.edit_iterations.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {COLORS['bg_card']};
+                border: 1px solid {COLORS['border']};
+                border-radius: {BORDER_RADIUS['sm']}px;
+                padding: 0px 4px;
+                font-size: {FONTS['size_md']}px;
+                color: {COLORS['text_primary']};
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {COLORS['primary']};
+            }}
+        """)
+
+        # + 按钮
+        self.btn_iterations_inc = QPushButton("+")
+        self.btn_iterations_inc.setFixedWidth(28)
+        self.btn_iterations_inc.setToolTip("增加迭代次数")
+        self.btn_iterations_inc.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLORS['bg_card']};
+                border: 1px solid {COLORS['border']};
+                border-radius: {BORDER_RADIUS['sm']}px;
+                padding: 4px 8px;
+                color: {COLORS['text_primary']};
+                font-size: {FONTS['size_md']}px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['border_light']};
+                border-color: {COLORS['primary']};
+            }}
+            QPushButton:pressed {{
+                background-color: {COLORS['border']};
+            }}
+        """)
+
+        # - 按钮
+        self.btn_iterations_dec = QPushButton("-")
+        self.btn_iterations_dec.setFixedWidth(28)
+        self.btn_iterations_dec.setToolTip("减少迭代次数")
+        self.btn_iterations_dec.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLORS['bg_card']};
+                border: 1px solid {COLORS['border']};
+                border-radius: {BORDER_RADIUS['sm']}px;
+                padding: 4px 8px;
+                color: {COLORS['text_primary']};
+                font-size: {FONTS['size_md']}px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['border_light']};
+                border-color: {COLORS['primary']};
+            }}
+            QPushButton:pressed {{
+                background-color: {COLORS['border']};
+            }}
+        """)
+
+        iterations_layout.addWidget(self.edit_iterations)
+        iterations_layout.addWidget(self.btn_iterations_inc)
+        iterations_layout.addWidget(self.btn_iterations_dec)
+
+        # 迭代次数参数存储
+        self._iterations_value = 50
+        self._iterations_min = 10
+        self._iterations_max = 500
+        self._iterations_step = 10
+
+        # 连接信号
+        self.btn_iterations_inc.clicked.connect(self._on_iterations_inc)
+        self.btn_iterations_dec.clicked.connect(self._on_iterations_dec)
+        self.edit_iterations.editingFinished.connect(self._on_iterations_edit_finished)
+
+        pso_layout.addWidget(iterations_widget, 1, 1)
+
+        # 目标RMSE - 使用自定义 +/- 按钮布局，支持直接输入
         pso_layout.addWidget(QLabel("目标RMSE:"), 2, 0)
-        self.spin_target_rmse = QDoubleSpinBox()
-        self.spin_target_rmse.setObjectName("paramSpinBox")
-        self.spin_target_rmse.setRange(0.001, 1.0)
-        self.spin_target_rmse.setValue(0.03)
-        self.spin_target_rmse.setDecimals(4)
-        self.spin_target_rmse.setSingleStep(0.01)
-        self.spin_target_rmse.setToolTip("优化目标RMSE阈值")
-        pso_layout.addWidget(self.spin_target_rmse, 2, 1)
 
-        # 频率选择
+        # 数值显示和按钮容器
+        rmse_widget = QWidget()
+        rmse_layout = QHBoxLayout(rmse_widget)
+        rmse_layout.setContentsMargins(0, 0, 0, 0)
+        rmse_layout.setSpacing(4)
+
+        # 数值输入框（可编辑）
+        self.edit_target_rmse = QLineEdit("0.03")
+        self.edit_target_rmse.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.edit_target_rmse.setFixedSize(80, 35)
+        self.edit_target_rmse.setValidator(QDoubleValidator(0.001, 1.0, 4, self))
+        self.edit_target_rmse.setToolTip("优化目标RMSE阈值 (0.001-1.0)")
+        self.edit_target_rmse.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {COLORS['bg_card']};
+                border: 1px solid {COLORS['border']};
+                border-radius: {BORDER_RADIUS['sm']}px;
+                padding: 0px 4px;
+                font-size: {FONTS['size_md']}px;
+                color: {COLORS['text_primary']};
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {COLORS['primary']};
+            }}
+        """)
+
+        # + 按钮
+        self.btn_rmse_inc = QPushButton("+")
+        self.btn_rmse_inc.setFixedWidth(28)
+        self.btn_rmse_inc.setToolTip("增加目标RMSE")
+        self.btn_rmse_inc.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLORS['bg_card']};
+                border: 1px solid {COLORS['border']};
+                border-radius: {BORDER_RADIUS['sm']}px;
+                padding: 4px 8px;
+                color: {COLORS['text_primary']};
+                font-size: {FONTS['size_md']}px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['border_light']};
+                border-color: {COLORS['primary']};
+            }}
+            QPushButton:pressed {{
+                background-color: {COLORS['border']};
+            }}
+        """)
+
+        # - 按钮
+        self.btn_rmse_dec = QPushButton("-")
+        self.btn_rmse_dec.setFixedWidth(28)
+        self.btn_rmse_dec.setToolTip("减少目标RMSE")
+        self.btn_rmse_dec.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {COLORS['bg_card']};
+                border: 1px solid {COLORS['border']};
+                border-radius: {BORDER_RADIUS['sm']}px;
+                padding: 4px 8px;
+                color: {COLORS['text_primary']};
+                font-size: {FONTS['size_md']}px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: {COLORS['border_light']};
+                border-color: {COLORS['primary']};
+            }}
+            QPushButton:pressed {{
+                background-color: {COLORS['border']};
+            }}
+        """)
+
+        rmse_layout.addWidget(self.edit_target_rmse)
+        rmse_layout.addWidget(self.btn_rmse_inc)
+        rmse_layout.addWidget(self.btn_rmse_dec)
+
+        # 目标RMSE参数存储
+        self._target_rmse_value = 0.03
+        self._target_rmse_min = 0.001
+        self._target_rmse_max = 1.0
+        self._target_rmse_step = 0.01
+
+        # 连接信号
+        self.btn_rmse_inc.clicked.connect(self._on_rmse_inc)
+        self.btn_rmse_dec.clicked.connect(self._on_rmse_dec)
+        self.edit_target_rmse.editingFinished.connect(self._on_rmse_edit_finished)
+
+        pso_layout.addWidget(rmse_widget, 2, 1)
+
+        # 频率选择 - 宽度与目标RMSE行对齐（输入框80 + 间距4 + 两个按钮各28 = 140）
         pso_layout.addWidget(QLabel("分析频率:"), 3, 0)
         self.combo_frequency = QComboBox()
+        self.combo_frequency.setFixedHeight(28)
+        self.combo_frequency.setFixedWidth(180)  # 与目标RMSE行（输入框80+间距4+两个按钮28+28）对齐
         self.combo_frequency.addItems(["10Hz", "20Hz", "All"])
         self.combo_frequency.setCurrentIndex(2)   #设置默认选中第 2 项（All）
         pso_layout.addWidget(self.combo_frequency, 3, 1)
@@ -844,13 +1203,32 @@ class MainWindow(QMainWindow):
         # ========== 右侧：图表Tab区域 ==========
         self.chart_tabs = QTabWidget()
 
-        # 图表Tab样式
+        # 图表Tab样式 - 与主Tab保持一致的Figma风格
         self.chart_tabs.setStyleSheet(f"""
             QTabWidget::pane {{
                 border: 1px solid {COLORS['border']};
                 border-radius: {BORDER_RADIUS['md']}px;
                 padding: 8px;
                 background-color: {COLORS['bg_card']};
+            }}
+            QTabBar::tab {{
+                padding: 10px 20px;
+                margin-right: 4px;
+                border-top-left-radius: {BORDER_RADIUS['md']}px;
+                border-top-right-radius: {BORDER_RADIUS['md']}px;
+                background-color: {COLORS['bg_hover']};
+                color: {COLORS['text_secondary']};
+                font-size: {FONTS['size_md']}px;
+            }}
+            QTabBar::tab:selected {{
+                background-color: {COLORS['bg_card']};
+                border: 1px solid {COLORS['border']};
+                border-bottom: none;
+                font-weight: bold;
+                color: {COLORS['primary']};
+            }}
+            QTabBar::tab:hover:!selected {{
+                background-color: {COLORS['border_light']};
             }}
         """)
 
