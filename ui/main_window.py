@@ -2087,7 +2087,7 @@ class MainWindow(QMainWindow):
         # setFixedHeight(): 固定高度，28像素
         self.combo_frequency.setFixedHeight(28)
         # 宽度计算：输入框80 + 间距4 + 两个按钮28+28 = 140
-        self.combo_frequency.setFixedWidth(140)
+        self.combo_frequency.setFixedWidth(160)
 
         # addItems(): 批量添加选项列表
         self.combo_frequency.addItems(["10Hz", "20Hz", "All"])
@@ -2097,7 +2097,6 @@ class MainWindow(QMainWindow):
         self.combo_frequency.setCurrentIndex(2)
 
         pso_layout.addWidget(self.combo_frequency, 3, 1)
-
         # 将PSO参数卡片添加到主布局
         layout.addWidget(pso_group)
 

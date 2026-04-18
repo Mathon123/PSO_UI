@@ -244,6 +244,15 @@ class ChartWidget(QWidget):
         self.canvas_layout.insertStretch(0, 1)
         self.canvas_layout.addWidget(self.canvas)
 
+        # 保存原始坐标轴范围，用于重置功能
+        self._original_limits = {}
+        if self.figure and self.figure.axes:
+            for i, ax in enumerate(self.figure.axes):
+                self._original_limits[i] = {
+                    'xlim': ax.get_xlim(),
+                    'ylim': ax.get_ylim()
+                }
+
     def save_chart(self, file_path: str = None):
         """保存图表"""
         if self.figure:
@@ -308,9 +317,13 @@ class ChartWidget(QWidget):
     def _reset_view(self):
         """重置视图"""
         if self.figure and hasattr(self.figure, 'axes'):
-            for ax in self.figure.axes:
-                ax.relim()
-                ax.autoscale_view()
+            for i, ax in enumerate(self.figure.axes):
+                if i in self._original_limits:
+                    ax.set_xlim(self._original_limits[i]['xlim'])
+                    ax.set_ylim(self._original_limits[i]['ylim'])
+                else:
+                    ax.relim()
+                    ax.autoscale_view()
             self.canvas.draw()
 
     def _toggle_fullscreen(self):
